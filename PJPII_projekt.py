@@ -14,7 +14,8 @@ violet = (162, 72, 225)
 
 gameDisplay = pygame.display.set_mode((screen_width,screen_height)) #INICJALIZUJE OKNO
 pygame.display.set_caption("KOSMICZNY ATAK") # NADAJE TYTUŁ
-rocketImg= pygame.image.load('rocket.gif') # WCZYTUJE OBRAZ POSTACI GRACZA
+
+#POCZATKOWE WARTOSCI
 score = 0   # POCZATKOWY WYNIK
 life = 3    #POCZTAKOWA LICZBA ZYC
 level_number = 1    #POCZATKOWY LEVEL
@@ -24,6 +25,57 @@ cosmosImg = pygame.image.load("cosmos.jpg")
 logoImg = pygame.image.load("logo.png")
 infoImg = pygame.image.load("info.jpg")
 strzalImg = pygame.image.load("strzal.jpg")
+obcy_1Img=pygame.image.load("enemy1_1.png")
+obcy_2Img=pygame.image.load("enemy1_2.png")
+obcy_3Img=pygame.image.load("enemy1_3.png")
+rocketImg= pygame.image.load('rocket.gif')
+
+#DANE DOTYCZACE MOBOW
+MOB_WIDTH = 50
+MOB_HEIGHT = 50
+POCZATKOWY_X = 50
+POCZATKOWY_Y = 50
+PREDKOSC_MOB = 1
+PRZERWA_MIEDZY_OBCYMI = 55
+
+
+#KLASA MOB TWORZACA PRZECIWNIKOW
+class Mob(pygame.sprite.Sprite):
+    def __init__(self, x, y, img):
+        super().__init__()
+        self.image = img
+        self.image.set_colorkey(black)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speedx = PREDKOSC_MOB
+    def update(self):
+        self.rect.x += self.speedx
+
+#DODAWANIE POJEDYNCZYCH MOBOW DO GRUPY ZA POMOCA SPRITE (BIBLIOTEKA PYGAME)
+all_sprites = pygame.sprite.Group()
+mobs = pygame.sprite.Group()
+
+#FUNKCJA TWORZACA NOWE MOBY
+def new_mob_1(POCZATKOWY_X, POCZATKOWY_Y, img):
+    for moby in range(10):
+        m = Mob(POCZATKOWY_X, POCZATKOWY_Y,img)
+        all_sprites.add(m)
+        mobs.add(m)
+        POCZATKOWY_X += PRZERWA_MIEDZY_OBCYMI
+
+#TWORZENIE RZEDOW MOBOW - RZAD PIERWSZY I DRUGI
+for i in range(2):
+        new_mob_1(POCZATKOWY_X,POCZATKOWY_Y, obcy_1Img)
+        POCZATKOWY_Y += 40
+#TWORZENIE RZEDOW MOBOW - RZAD TRZECI I CZWARTY
+for i in range(2):
+    new_mob_1(POCZATKOWY_X,POCZATKOWY_Y+10, obcy_2Img)
+    POCZATKOWY_Y += 40
+#TWORZENIE RZEDOW MOBOW - RZAD PIATY
+for i in range(1):
+    new_mob_1(POCZATKOWY_X,POCZATKOWY_Y+20, obcy_3Img)
+    POCZATKOWY_Y += 40
 
 #RUCH RAKIETA
 def rocket (x,y):
@@ -173,6 +225,19 @@ def game_loop():
         elif x < 0:
             x = 0
         rocket(x, y)
+
+        # OBSLUGA KOLIZJI GRUPY MOBOW ZE SCIANA
+        for alien in (all_sprites.sprites()):
+            if alien.rect.x + MOB_WIDTH >= 800 or alien.rect.x <= 0:
+                for alien in (all_sprites.sprites()):
+                    alien.rect.y += 3
+                    alien.speedx *= (-1)
+
+        #UPDATY EKRANU
+        all_sprites.update()
+        all_sprites.draw(gameDisplay)
+        pygame.display.update()
+        #pygame.display.flip()
         pygame.display.update()
 
 game_menu()
