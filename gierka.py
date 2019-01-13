@@ -56,7 +56,7 @@ PREDKOSC_MOB = 10
 ENEMYNAME = 'Enemy'
 ENEMYGAP= 15
 ARRAYWIDTH = 10
-ARRAYHEIGHT = 5
+ARRAYHEIGHT = 6
 MOVETIME = 600
 MOVEX = 10
 MOVEY = MOB_HEIGHT
@@ -146,7 +146,6 @@ class Blocker(pygame.sprite.Sprite):
         self.row = row
         self.column = column
 
-
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, rect, color, vectory, speed):
         pygame.sprite.Sprite.__init__(self)
@@ -183,8 +182,6 @@ class Bullet(pygame.sprite.Sprite):
         self.bulletdy = 1.1
         self.rect.y -= self.bulletdy * self.speed
         self.rect.x -= self.bulletdx * self.speed
-
-
 
 #FUNKCJA DEKLARUJACA NAPISY
 def text_objects(text , font):
@@ -374,13 +371,7 @@ class App(object):
         self.player = self.makePlayer()
         self.bullets = pygame.sprite.Group()
         self.greenBullets = pygame.sprite.Group()
-        #self.blockerGroup1 = self.makeBlockers(0)
-        #self.blockerGroup2 = self.makeBlockers(1)
-        #self.blockerGroup3 = self.makeBlockers(2)
-        #self.blockerGroup4 = self.makeBlockers(3)
-        #self.allBlockers = pygame.sprite.Group(self.blockerGroup1, self.blockerGroup2,
-                                        #       self.blockerGroup3, self.blockerGroup4)
-       # self.allSprites = pygame.sprite.Group(self.player, self.allBlockers)
+
         self.allSprites = pygame.sprite.Group(self.player)
         self.players = pygame.sprite.Group()
 
@@ -392,22 +383,6 @@ class App(object):
         self.gameOver = False
         self.gameOverTime = pygame.time.get_ticks()
 
-   # def makeBlockers(self, number=1):
-    #    blockerGroup = pygame.sprite.Group()
-
-     #   for row in range(5):
-      #     for column in range(7):
-       #         blocker = Blocker(10, violet, row, column)
-       #         blocker.rect.x = 50 + (150 * number) + (column * blocker.width)
-        #        blocker.rect.y = 375 + (row * blocker.height)
-         #       blockerGroup.add(blocker)
-
-       # for blocker in blockerGroup:
-        #    if (blocker.column == 0 and blocker.row == 0
-         #           or blocker.column == 6 and blocker.row == 0):
-          #      blocker.kill()
-
-        #return blockerGroup
 
     def checkForEnemyBullets(self):
         global start_life
@@ -420,13 +395,6 @@ class App(object):
         for bullet in redBulletsGroup:
             if pygame.sprite.collide_rect(bullet, self.player):
                 start_life -= 1
-               # if self.player.color == GREEN:
-                #    self.player.color = YELLOW
-                #elif self.player.color == YELLOW:
-                #3    self.player.color = RED
-                #elif self.player.color == RED:
-                #    self.gameOver = True
-                #    self.gameOverTime = pygame.time.get_ticks()
                 bullet.kill()
 
     def shootEnemyBullet(self, rect):
@@ -463,8 +431,6 @@ class App(object):
         player.rect.centerx = self.displayRect.centerx
         player.rect.bottom = self.displayRect.bottom - 5
         players.add(player)
-       # if pygame.sprite.groupcollide(self.redBulletsGroup, self.players, True, False):
-        #    print ("dddd")
 
         return player
 
@@ -538,46 +504,29 @@ class App(object):
         global extra_bullets_counter
         reds = (shot for shot in self.bullets if shot.color == RED)
         red_bullets = pygame.sprite.Group(reds)
-        #       pygame.sprite.groupcollide(red_bullets, self.allBlockers, True, True)
         pygame.sprite.groupcollide(red_bullets, self.players, True, False)
         if pygame.sprite.groupcollide(red_bullets, boosts, True, True):
-            extra_bullets_counter = 15
-       # pygame.sprite.groupcollide(self.enemies, self.allBlockers, False, True)
-       # self.collide_green_blockers()
-      #  self.collide_red_blockers()
-
-   # def collide_green_blockers(self):
-    #    for bullet in self.greenBullets:
-     #       casting = Bullet(self.player.rect, GREEN, -1, 20)
-      #      casting.rect = bullet.rect.copy()
-       #     for pixel in range(bullet.speed):
-        #        hit = pygame.sprite.spritecollideany(casting, self.allBlockers)
-         #3       if hit:
-          #          hit.kill()
-           #         bullet.kill()
-            #        break
-             #   casting.rect.y -= 1
+            extra_bullets_counter = 5
 
     def collide_red_blockers(self):
         global extra_bullets_counter
         reds = (shot for shot in self.bullets if shot.color == RED)
         red_bullets = pygame.sprite.Group(reds)
- #       pygame.sprite.groupcollide(red_bullets, self.allBlockers, True, True)
         pygame.sprite.groupcollide(red_bullets, self.players, True, False)
         if pygame.sprite.groupcollide(red_bullets, boosts, True, True):
-            extra_bullets_counter = 15
+            extra_bullets_counter = 5
 
 
     def checkGameOver(self):
         global start_life
         global t0
         global start_score
+        global level_number
+        global MOVETIME
         if len(self.enemies) == 0:
-            self.gameOver = True
-            self.gameStart = False
-            self.beginGame = False
-            self.gameOverTime = pygame.time.get_ticks()
-            self.win.draw(self.displaySurf)
+            level_number += 1
+            MOVETIME -= 150
+            self.needToMakeEnemies = True
 
         if start_life == 0:
             self.gameOver = True
@@ -585,8 +534,16 @@ class App(object):
             self.beginGame = False
             self.gameOverTime = pygame.time.get_ticks()
             start_life = 3
-            t0=0
-            start_score =0
+            t0 = 0
+            start_score = 0
+
+        if level_number == 4:
+            print("wygrana")
+            self.gameOver = True
+            self.gameStart = False
+            self.beginGame = False
+            self.gameOverTime = pygame.time.get_ticks()
+            self.win.draw(self.displaySurf)
 
         else:
             for enemy in self.enemies:
@@ -604,13 +561,10 @@ class App(object):
         sys.exit()
 
     def mainLoop(self):
-
-        booststate = "not_ready"
         life = 3
         t0 = 0
         while True:
-
-            t0+=1
+            t0 += 1
             if self.gameStart:
                 self.resetGame()
                 self.gameOver = False
@@ -641,12 +595,12 @@ class App(object):
                     currentTime = pygame.time.get_ticks()
                     gameDisplay.blit(cosmosImg, (0, 0))
                    # self.displaySurf.fill(black)
-                    level_counter(1)
+                    level_counter(level_number)
                     lives(start_life)
                     your_score(start_score)
                     # WARUNEK PO KTORYM POJAWIA SIE BOOST
-                    if t0 % 1000 == 0:
-                        boost = Boost(0, 50, boostImg)
+                    if t0 % 500 == 0:
+                        boost = Boost(0, 500, boostImg)
                         boosts.add(boost)
 
                     self.checkInput()
@@ -663,6 +617,3 @@ class App(object):
                     self.checkGameOver()
                     self.clock.tick(self.fps)
 game_menu()
-#if __name__ == '__main__':
- #   app = App()
-  #  app.mainLoop()
