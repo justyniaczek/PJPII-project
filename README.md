@@ -1,4 +1,5 @@
 # PJPII-project
+UWAGA PLIK PJPII-projekt jest plikiem z gra !!! 
 GRA KOSMICZNY ATAK
 
 Program ten jest dwuwymiarową grą polegającą na likwidacji wrogów oraz zdobyciu jak największej ilości punktów.
