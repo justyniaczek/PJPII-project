@@ -1,46 +1,90 @@
 import pygame
+import sys
+from random import shuffle
+from pygame.locals import *
+import pygame
 import time
+import math
+import datetime
 
-pygame.init() #inicjalizuje pygame
+#CONSTANS
 
-#SZEROKOSC I DLUGOSC OKNA
-screen_width = 800
-screen_height = 600
-
-#kolory które beda uzyte, podane w RGB
+#COLORS IN RGB
 black = (0, 0, 0)
 white = (255, 255, 255)
 violet = (162, 72, 225)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+#BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
 
-gameDisplay = pygame.display.set_mode((screen_width,screen_height)) #INICJALIZUJE OKNO
-pygame.display.set_caption("KOSMICZNY ATAK") # NADAJE TYTUŁ
+#SZEROKOSC I DLUGOSC OKNA
+DISPLAYWIDTH = 800
+DISPLAYHEIGHT = 600
+XMARGIN = 50
+YMARGIN = 100
 
 #POCZATKOWE WARTOSCI
-score = 0   # POCZATKOWY WYNIK
-life = 3    #POCZTAKOWA LICZBA ZYC
+
+start_life = 3    #POCZTAKOWA LICZBA ZYC
 level_number = 1    #POCZATKOWY LEVEL
+start_score = 0
+extra_bullets_counter = 0
+
+
+#PLAYER
+
+PLAYERWIDTH = 40
+PLAYERHEIGHT = 10
+PLAYER1 = 'Player 1'
+PLAYERSPEED = 5
+
+
+#BULLETSTATES
+
+BULLETWIDTH = 5
+BULLETHEIGHT = 5
+BULLETOFFSET = 800
+
+
+# MOBS
+MOB_WIDTH = 40
+MOB_HEIGHT = 30
+PREDKOSC_MOB = 10
+ENEMYNAME = 'Enemy'
+ENEMYGAP= 15
+ARRAYWIDTH = 10
+ARRAYHEIGHT = 6
+MOVETIME = 600
+MOVEX = 10
+MOVEY = MOB_HEIGHT
+TIMEOFFSET = 800
+
+BOOST_SPEED = 1
 
 #WCZYTYWANIE OBRAZOW
 cosmosImg = pygame.image.load("cosmos.jpg")
 logoImg = pygame.image.load("logo.png")
 infoImg = pygame.image.load("info.jpg")
 strzalImg = pygame.image.load("strzal.jpg")
-obcy_1Img=pygame.image.load("enemy1_1.png")
-obcy_2Img=pygame.image.load("enemy1_2.png")
-obcy_3Img=pygame.image.load("enemy1_3.png")
-rocketImg= pygame.image.load('rocket.gif')
-
-#DANE DOTYCZACE MOBOW
-MOB_WIDTH = 50
-MOB_HEIGHT = 50
-POCZATKOWY_X = 50
-POCZATKOWY_Y = 50
-PREDKOSC_MOB = 1
-PRZERWA_MIEDZY_OBCYMI = 55
+obcy_1Img = pygame.image.load("enemy1_1.png")
+obcy_2Img = pygame.image.load("enemy1_2.png")
+obcy_3Img = pygame.image.load("enemy1_3.png")
+rocketImg = pygame.image.load('rocket.gif')
+boostImg = pygame.image.load("boost.jpg")
 
 
-#KLASA MOB TWORZACA PRZECIWNIKOW
-class Mob(pygame.sprite.Sprite):
+#POZWALA NA WIELOKROTNY INPUT
+DIRECT_DICT = {pygame.K_LEFT: (-1),
+               pygame.K_RIGHT: (1)}
+
+
+#INICJALIZUJE PYGAME
+pygame.init()
+gameDisplay = pygame.display.set_mode((DISPLAYWIDTH, DISPLAYHEIGHT)) #INICJALIZUJE OKNO
+
+#KLASA BOOST
+class Boost(pygame.sprite.Sprite):
     def __init__(self, x, y, img):
         super().__init__()
         self.image = img
@@ -48,56 +92,84 @@ class Mob(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
-        self.speedx = PREDKOSC_MOB
+        self.speedx = BOOST_SPEED
     def update(self):
         self.rect.x += self.speedx
 
-#DODAWANIE POJEDYNCZYCH MOBOW DO GRUPY ZA POMOCA SPRITE (BIBLIOTEKA PYGAME)
-all_sprites = pygame.sprite.Group()
-mobs = pygame.sprite.Group()
+boosts = pygame.sprite.Group()
 
-#FUNKCJA TWORZACA NOWE MOBY
-def new_mob_1(POCZATKOWY_X, POCZATKOWY_Y, img):
-    for moby in range(10):
-        m = Mob(POCZATKOWY_X, POCZATKOWY_Y,img)
-        all_sprites.add(m)
-        mobs.add(m)
-        POCZATKOWY_X += PRZERWA_MIEDZY_OBCYMI
 
-#TWORZENIE RZEDOW MOBOW - RZAD PIERWSZY I DRUGI
-for i in range(2):
-        new_mob_1(POCZATKOWY_X,POCZATKOWY_Y, obcy_1Img)
-        POCZATKOWY_Y += 40
-#TWORZENIE RZEDOW MOBOW - RZAD TRZECI I CZWARTY
-for i in range(2):
-    new_mob_1(POCZATKOWY_X,POCZATKOWY_Y+10, obcy_2Img)
-    POCZATKOWY_Y += 40
-#TWORZENIE RZEDOW MOBOW - RZAD PIATY
-for i in range(1):
-    new_mob_1(POCZATKOWY_X,POCZATKOWY_Y+20, obcy_3Img)
-    POCZATKOWY_Y += 40
+#KLASA PLAYER- TWORZACA GRACZA
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.width = PLAYERWIDTH
+        self.height = PLAYERHEIGHT
+        #self.image = self.setImage()
+        self.image = rocketImg
+        self.image = pygame.Surface((self.width, self.height))
+       # self.color = PLAYERCOLOR
+        self.color = violet
+        self.image.fill(self.color)
+        self.image.set_colorkey(black)
+        self.rect = self.image.get_rect()
+        self.name = PLAYER1
+        self.speed = PLAYERSPEED
+        self.vectorx = 0
+    #RUCH GRACZA
+    def update(self, keys, *args):
+        for key in DIRECT_DICT:
+            if keys[key]:
+                self.rect.x += DIRECT_DICT[key] * self.speed
+        self.checkForSide()
+        #self.image.fill(self.color)
 
-#RUCH RAKIETA
-def rocket (x,y):
-    gameDisplay.blit(rocketImg, (x, y))
+    #SPRAWDZENIE CZY PRZECIWNICY DOTYKAJA KRAWEDZI EKRANU -JESLI TAK ZMIANA KIERUNKU RUCHU
+    def checkForSide(self):
+        if self.rect.right > DISPLAYWIDTH:
+            self.rect.right = DISPLAYWIDTH
+            self.vectorx = 0
+        elif self.rect.left < 0:
+            self.rect.left = 0
+            self.vectorx = 0
 
-#LICZNIK PUNKTOW
-def your_score(score):
-    font = pygame.font.SysFont('Courier', 20)
-    text = font.render("SCORE:"+str(score), True, white)
-   # gameDisplay.blit(text, (20, 20))
+#KLASA POCISKU
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, rect, color, vectory, speed):
+        pygame.sprite.Sprite.__init__(self)
+        self.width = BULLETWIDTH
+        self.height = BULLETHEIGHT
+        self.color = color
+        self.image = pygame.Surface((self.width, self.height))
+        self.image.fill(self.color)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = rect.centerx
+        self.rect.top = rect.bottom
+        self.name = 'bullet'
+        self.vectory = vectory
+        self.speed = speed
 
-#LICZNIK ZYC
-def lives(life):
-    font = pygame.font.SysFont('Courier', 15)
-    text = font.render("LIVES:" + str(life), True, white)
-   # gameDisplay.blit(text, (20, 560))
+    def update(self, *args):
+        self.oldLocation = (self.rect.x, self.rect.y)
+        self.rect.y += self.vectory * self.speed
+        if self.rect.bottom < 0:
+            self.kill()
+        elif self.rect.bottom > 600:
+            self.kill()
 
-#LICZNIK POZIOMOW
-def level_counter(level_number):
-    font = pygame.font.SysFont('Courier', 20)
-    text = font.render("LEVEL:" + str(level_number), True, violet)
-    gameDisplay.blit(text, (690, 20))
+    def extraBullet(self, *args):
+        self.oldLocation = (self.rect.x, self.rect.y)
+        self.bulletdx = 1.7
+        self.bulletdy = 1.1
+        self.rect.y += self.bulletdy * self.speed
+        self.rect.x += self.bulletdx * self.speed
+
+    def extraBullet2(self, *args):
+        self.oldLocation = (self.rect.x, self.rect.y)
+        self.bulletdx = 1.7
+        self.bulletdy = 1.1
+        self.rect.y -= self.bulletdy * self.speed
+        self.rect.x -= self.bulletdx * self.speed
 
 #FUNKCJA DEKLARUJACA NAPISY
 def text_objects(text , font):
@@ -117,11 +189,12 @@ def game_menu():
         klik = pygame.mouse.get_pressed()
 
         #OBSLUGA PRZYCISKU START
-        if 140+500>mouse[0]> 140 and 150+100>mouse[1]>150:
+        if 140+500 > mouse[0] > 140 and 150+100 > mouse[1] > 150:
             pygame.draw.rect(gameDisplay, violet, (140, 150, 500, 100)) #szerokosc na ekranie, wys. na ekranie , szerokosc i wysokosc
             if klik[0] == 1:
                 time.sleep(1)
-                game_loop()
+                app = App()
+                app.mainLoop()
         else:
             pygame.draw.rect(gameDisplay, black, (140, 150, 500, 100))
         #OBSLUGA PRZYCISKU INFO
@@ -157,7 +230,7 @@ def game_menu():
         gameDisplay.blit(textSurf, textRect)
 
         #WYSWIETLAM LOGO GRY
-        gameDisplay.blit(logoImg, (150, screen_height * 0.1))
+        gameDisplay.blit(logoImg, (150, DISPLAYHEIGHT * 0.1))
         pygame.display.update()
 
 #FUNKCJA DO PĘTLI INFO
@@ -174,72 +247,379 @@ def info_loop():
                 if event.key == pygame.K_ESCAPE: #PO WCISNIECIU ESC - POWRÓT DO MENU GLOWNEGO
                     game_menu()
 
-#FUNKCJA PETLI GRY
-def game_loop():
-    game = True
-    x = screen_width/2 - 40
-    y = 500
-    x_change = 0
-    liczbastrzalow = 0
-    bullet_speed = 14
-    bullet_x = x + 20
-    bullet_y = y - 50
-    bulletstate = "ready"
+#LICZNIK PUNKTOW
+def your_score(score):
 
-    while(game):
-        gameDisplay.blit(cosmosImg, (0, 0))
-        your_score(score)
-        lives(life)
-        level_counter(level_number)
-        rocket(x, y)
+    font = pygame.font.SysFont('Courier', 20)
+    text = font.render("SCORE:"+str(score), True, white)
+    gameDisplay.blit(text, (20, 20))
 
-        for event in pygame.event.get():  # EVERY EVENT WHICH HAPPENS- KLIKNIECIE MYSZKA , KLAWISZ ITP.
-            if event.type == pygame.QUIT:  # PO WCISNIECIU W OKNIE X
-                pygame.quit()               #WYJSCIE Z GRY
-                quit()
-            if event.type == pygame.KEYDOWN: # JESLI PRZYCISK JEST WCISNIETY
-                if event.key == pygame.K_ESCAPE: #PO WCISNIECIU ESC - POWRÓT DO MENU GLOWNEGO
+#LICZNIK LEVEL
+def level_counter(level_number):
+    font = pygame.font.SysFont('Courier', 20)
+    text = font.render("LEVEL:" + str(level_number), True, violet)
+    gameDisplay.blit(text, (690, 20))
+
+#LICZNIK ZYC
+def lives(life):
+    font = pygame.font.SysFont('Courier', 15)
+    text = font.render("LIVES:" + str(life), True, white)
+    gameDisplay.blit(text, (20, 560))
+
+#KLASA TWORZACA WROGOW
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, row, column):
+        pygame.sprite.Sprite.__init__(self)
+        self.width = MOB_WIDTH
+        self.height = MOB_HEIGHT
+        self.row = row
+        self.column = column
+        self.image = self.setImage()
+        self.rect = self.image.get_rect()
+        self.name = 'enemy'
+        self.vectorx = 1
+        self.moveNumber = 0
+        self.moveTime = MOVETIME
+        self.timeOffset = row * TIMEOFFSET
+        self.timer = pygame.time.get_ticks() - self.timeOffset   # czas w milisekundach
+
+    #RUCH PRZECIWNIKOW
+    def update(self, keys, currentTime):
+        if currentTime - self.timer > self.moveTime:
+            if self.moveNumber < 10:
+                self.rect.x += MOVEX * self.vectorx
+                self.moveNumber += 1
+            elif self.moveNumber >= 10:
+                self.vectorx *= -1
+                self.moveNumber = 0
+                self.rect.y += MOVEY
+                if self.moveTime > 100:
+                    self.moveTime -= 50
+            self.timer = currentTime
+
+ #TWORZENIE OBRAZOW WROGOW
+    def setImage(self):
+        if self.row == 0:
+            image = pygame.image.load('enemy1_3.png')
+        elif self.row == 1:
+            image = pygame.image.load('enemy1_2.png')
+        elif self.row == 2:
+            image = pygame.image.load('enemy1_1.png')
+        else:
+            image = pygame.image.load('enemy1_1.png')
+        image.convert_alpha()
+        image = pygame.transform.scale(image, (self.width, self.height))
+
+        return image
+
+#KLASA RENDERUJACA TEKST
+class Text(object):
+    def __init__(self, font, size, message, color, rect, surface):
+        self.font = pygame.font.SysFont('Courier', 20)
+        self.message = message
+        self.surface = self.font.render(self.message, True, color)
+        self.rect = self.surface.get_rect()
+        self.setRect(rect)
+
+    def setRect(self, rect):
+        self.rect.centerx, self.rect.centery = rect.centerx, rect.centery - 5
+
+    def draw(self, surface):
+        surface.blit(self.surface, self.rect)
+
+
+#KLASA GRY
+class App(object):
+    def __init__(self):
+        pygame.init()
+        self.displaySurf, self.displayRect = self.makeScreen()
+        self.gameStart = True
+        self.gameOver = False
+        self.beginGame = False
+
+#TWORZENIE EKRANU
+    def makeScreen(self):
+        pygame.display.set_caption("KOSMICZNY ATAK")
+        displaySurf = pygame.display.set_mode((DISPLAYWIDTH, DISPLAYHEIGHT))
+        displayRect = displaySurf.get_rect()
+        displaySurf.convert()
+        return displaySurf, displayRect
+
+    #FUNKCJA RESETOWANIA GRY
+    def resetGame(self):
+        global start_score
+        self.gameStart = True
+        self.needToMakeEnemies = True
+
+        self.introMessage1 = Text('Courier.ttf', 50,
+                                 'Wcisnij przycisk aby rozpoczac',
+                                white, self.displayRect,
+                                self.displaySurf)
+        self.gameOverMessage = Text('Courier.ttf', 200,
+                                    'GAME OVER', white,
+                                    self.displayRect, self.displaySurf)
+        self.win = Text('Courier.ttf', 100,
+                                    'GRATULACJE WYGRALES!!' , white,
+                                    self.displayRect, self.displaySurf)
+
+        self.player = self.makePlayer()
+        self.bullets = pygame.sprite.Group()
+        self.greenBullets = pygame.sprite.Group()
+        self.allSprites = pygame.sprite.Group(self.player)
+        self.players = pygame.sprite.Group()
+        self.keys = pygame.key.get_pressed()
+        self.clock = pygame.time.Clock()
+        self.fps = 60
+        self.enemyMoves = 0
+        self.enemyBulletTimer = pygame.time.get_ticks()
+        self.gameOver = False
+        self.gameOverTime = pygame.time.get_ticks()
+
+    #FUNKCJA OBSLUGUJACA KOLIZJE STRZALU I PLAYERA
+    def checkForEnemyBullets(self):
+        global start_life
+        redBulletsGroup = pygame.sprite.Group()
+
+        for bullet in self.bullets:
+            if bullet.color == RED:
+                redBulletsGroup.add(bullet)
+
+        for bullet in redBulletsGroup:
+            if pygame.sprite.collide_rect(bullet, self.player):
+                start_life -= 1
+                bullet.kill()
+
+    #FUNKCJA OBSLUGUJACA STRZAL WROGOW
+    def shootEnemyBullet(self, rect):
+        if (pygame.time.get_ticks() - self.enemyBulletTimer) > BULLETOFFSET:
+            self.bullets.add(Bullet(rect, RED, 1, 5))
+            self.allSprites.add(self.bullets)
+            self.enemyBulletTimer = pygame.time.get_ticks()
+
+    #FUNKCJA SZUKAJACA OBCEGO KTORY BEDZIE STRZELAL
+    def findEnemyShooter(self):
+        columnList = []
+        for enemy in self.enemies:
+            columnList.append(enemy.column)
+        columnSet = set(columnList)
+        columnList = list(columnSet)
+        shuffle(columnList)
+        column = columnList[0]
+        enemyList = []
+        rowList = []
+
+        for enemy in self.enemies:
+            if enemy.column == column:
+                rowList.append(enemy.row)
+
+        row = max(rowList)
+
+        for enemy in self.enemies:
+            if enemy.column == column and enemy.row == row:
+                self.shooter = enemy
+
+    # FUNKCJA TWORZACA PLYERA
+    def makePlayer(self):
+        players = pygame.sprite.Group()
+        player = Player()
+        ##Place the player centerx and five pixels from the bottom
+        player.rect.centerx = self.displayRect.centerx
+        player.rect.bottom = self.displayRect.bottom - 5
+        players.add(player)
+
+        return player
+
+    #FUNKCJA TWORZACA OBCYCH
+    def makeEnemies(self):
+        enemies = pygame.sprite.Group()
+        for row in range(ARRAYHEIGHT):
+            for column in range(ARRAYWIDTH):
+                enemy = Enemy(row, column)
+                enemy.rect.x = XMARGIN + (column * (MOB_WIDTH + ENEMYGAP))
+                enemy.rect.y = YMARGIN + (row * (MOB_HEIGHT + ENEMYGAP))
+                enemies.add(enemy)
+
+        return enemies
+
+    #FUNKCJA OBSLUGUJACA INTERAKCJE Z KLAWIATURA
+    def checkInput(self):
+        global extra_bullets_counter
+        for event in pygame.event.get():
+            self.keys = pygame.key.get_pressed()
+            if event.type == QUIT:
+                self.terminate()
+
+            elif event.type == KEYDOWN:
+                if event.key == K_SPACE and len(self.greenBullets) < 1 and extra_bullets_counter == 0:
+                    bullet = Bullet(self.player.rect, RED, -1, 20)
+                    self.greenBullets.add(bullet)
+                    self.bullets.add(self.greenBullets)
+                    self.allSprites.add(self.bullets)
+
+                elif event.key == K_SPACE and len(self.greenBullets) < 1 and extra_bullets_counter > 0:
+                    bullet = Bullet(self.player.rect, RED, -1, 20)
+                    bullet.update()
+                    bullet_extra = Bullet(self.player.rect, RED, -1, 20)
+                    bullet_extra2 = Bullet(self.player.rect, RED, -1, 20)
+                    bullet_extra2.extraBullet2()
+                    bullet_extra.extraBullet()
+                    self.greenBullets.add(bullet_extra)
+                    self.greenBullets.add(bullet_extra2)
+                    self.greenBullets.add(bullet)
+                    self.bullets.add(self.greenBullets)
+                    self.allSprites.add(self.bullets)
+                    extra_bullets_counter -= 1
+
+                elif event.key == K_ESCAPE:
                     game_menu()
-                if event.key == pygame.K_LEFT:
-                    x_change -= 5
-                if event.key == pygame.K_RIGHT:
-                    x_change += 5
-                if event.key == pygame.K_SPACE:
-                    if bulletstate == "ready":
-                        liczbastrzalow+=1
-                        bullet_x = x+20
-                        bullet_y = 500
-                        bulletstate = "fire"
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_RIGHT or event.key == pygame.K_LEFT:
-                    x_change = 0
 
-        if liczbastrzalow >= 1 and bulletstate == "fire":
-            gameDisplay.blit(strzalImg, (bullet_x, bullet_y))
-        bullet_y -= bullet_speed
-        if bullet_y <= 0:
-            bulletstate = "ready"
-        x = x+x_change
-        if x > screen_width-50:
-            x = 747
-        elif x < 0:
-            x = 0
-        rocket(x, y)
+    #FUNKCJA OBSLUGUJACA PRZYCISKI PODCZAS STARTU GRY
+    def gameStartInput(self):
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                self.terminate()
+            elif event.type == KEYUP:
+                self.gameOver = False
+                self.gameStart = False
+                self.beginGame = True
 
-        # OBSLUGA KOLIZJI GRUPY MOBOW ZE SCIANA
-        for alien in (all_sprites.sprites()):
-            if alien.rect.x + MOB_WIDTH >= 800 or alien.rect.x <= 0:
-                for alien in (all_sprites.sprites()):
-                    alien.rect.y += 3
-                    alien.speedx *= (-1)
+    # FUNKCJA OBSLUGUJACA PRZYCISKI PODCZAS ZAKONCZENIA GRY
+    def gameOverInput(self):
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                self.terminate()
+            elif event.type == KEYUP:
+                self.gameStart = True
+                self.beginGame = False
+                self.gameOver = False
+                game_menu()
 
-        #UPDATY EKRANU
-        all_sprites.update()
-        all_sprites.draw(gameDisplay)
-        pygame.display.update()
-        #pygame.display.flip()
-        pygame.display.update()
+#SPRAWDZANIE KOLIZJI STRZALU Z WROGIEM, DODAWANIE PUNKTOW GRACZOWI
+    def checkCollisions(self):
+        self.checkForEnemyBullets()
+        global start_score
+        if pygame.sprite.groupcollide(self.bullets, self.enemies, True, True):
+            start_score += 100
+        global extra_bullets_counter
+        reds = (shot for shot in self.bullets if shot.color == RED)
+        red_bullets = pygame.sprite.Group(reds)
+        pygame.sprite.groupcollide(red_bullets, self.players, True, False)
+        if pygame.sprite.groupcollide(red_bullets, boosts, True, True):
+            extra_bullets_counter = 5
 
+#SPRAWDZANIE KOLIZJI BOOSTA ZE STRZALEM, DODAWANIE BONUSA
+    def collide_red_blockers(self):
+        global extra_bullets_counter
+        reds = (shot for shot in self.bullets if shot.color == RED)
+        red_bullets = pygame.sprite.Group(reds)
+        pygame.sprite.groupcollide(red_bullets, self.players, True, False)
+        if pygame.sprite.groupcollide(red_bullets, boosts, True, True):
+            extra_bullets_counter = 5
+
+#FUNKCJA Z WARUNKAMI SPRAWDZAJACYMI CZY GRA SIE KONCZY
+    def checkGameOver(self):
+        global start_life
+        global t0
+        global start_score
+        global level_number
+        global MOVETIME
+        # WARUNEK SPRAWDZAJACY ILOSC WROGOW
+        if len(self.enemies) == 0:
+            level_number += 1
+            MOVETIME -= 250
+            self.needToMakeEnemies = True
+
+        #WARUNEK SPRAWDZAJACY ILOSC ZYCIA
+        if start_life == 0:
+            self.gameOver = True
+            self.gameStart = False
+            self.beginGame = False
+            self.gameOverTime = pygame.time.get_ticks()
+            start_life = 3
+            t0 = 0
+            start_score = 0
+
+        # WARUNEK SPRAWDZAJACY ILOSC POZIOMOW
+        if level_number ==4:
+
+            self.displaySurf.fill(black)
+            self.gameOver = True
+            self.gameStart = False
+            self.beginGame = False
+            self.gameOverTime = pygame.time.get_ticks()
+            self.win.draw(self.displaySurf)
+            start_life = 3
+            t0 = 0
+            start_score = 0
+            pygame.display.update()
+
+#WARUNEK SPRAWDZAJACY CZY OBCY DOTRA DO DOLNEJ GRANICY EKRANU
+        else:
+            for enemy in self.enemies:
+                if enemy.rect.bottom > DISPLAYHEIGHT:
+                    self.gameOver = True
+                    self.gameStart = False
+                    self.beginGame = False
+                    self.gameOverTime = pygame.time.get_ticks()
+                    start_life = 3
+                    t0 = 0
+                    start_score = 0
+
+    #FUNKCJA ZAMYKAJACA PROGRAM
+    def terminate(self):
+        pygame.quit()
+        sys.exit()
+
+    #GŁOWNA PETLA GRY
+    def mainLoop(self):
+        life = 3
+        t0 = 0
+        while True:
+            t0 += 1
+            if self.gameStart:
+                self.resetGame()
+                self.gameOver = False
+                self.displaySurf.fill(black)
+                self.introMessage1.draw(self.displaySurf)
+                self.gameStartInput()
+                pygame.display.update()
+
+            elif self.gameOver:
+                self.displaySurf.fill(black)
+                self.gameOverMessage.draw(self.displaySurf)
+                if (pygame.time.get_ticks() - self.gameOverTime) > 2000:
+                    self.gameOverInput()
+                pygame.display.update()
+
+            elif self.beginGame:
+                if self.needToMakeEnemies:
+                    self.enemies = self.makeEnemies()
+                    self.allSprites.add(self.enemies)
+                    self.needToMakeEnemies = False
+                    pygame.event.clear()
+
+                else:
+                    currentTime = pygame.time.get_ticks()
+                    gameDisplay.blit(cosmosImg, (0, 0))
+                    level_counter(level_number)
+                    lives(start_life)
+                    your_score(start_score)
+
+                    # WARUNEK PO KTORYM POJAWIA SIE BOOST
+                    if t0 %700 == 0:
+                        boost = Boost(0, 50, boostImg)
+                        boosts.add(boost)
+
+                    self.checkInput()
+                    self.allSprites.update(self.keys, currentTime)
+                    boosts.draw(gameDisplay)
+                    boosts.update()
+                    if len(self.enemies) > 0:
+                        self.findEnemyShooter()
+                        self.shootEnemyBullet(self.shooter.rect)
+                    self.checkCollisions()
+                    self.allSprites.draw(self.displaySurf)
+                    pygame.display.update()
+                    self.checkGameOver()
+                    self.clock.tick(self.fps)
 game_menu()
-pygame.quit()
-quit()
